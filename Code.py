@@ -1,5 +1,8 @@
 import re
+import sys
 from collections import defaultdict
+
+sys.setrecursionlimit(3000)
 
 def solve_puzzle(filename):
     try:
@@ -12,44 +15,39 @@ def solve_puzzle(filename):
     if not fragments:
         return "No data"
 
-    adj = defaultdict(list)
-    in_degree = defaultdict(int)
-    out_degree = defaultdict(int)
-
-    for frag in fragments:
-        u = frag[:2]
-        v = frag[-2:]
-        adj[u].append(frag)
-        out_degree[u] += 1
-        in_degree[v] += 1
-
-    start_node = None
-    for node in set(list(out_degree.keys()) + list(in_degree.keys())):
-        if out_degree[node] - in_degree[node] == 1:
-            start_node = node
-            break
+    max_chain = []
+    
+    def dfs(current_chain, current_adj):
+        nonlocal max_chain
+        
+        if len(current_chain) > len(max_chain):
+            max_chain = list(current_chain)
             
-    if start_node is None:
-        start_node = next(iter(adj.keys()))
+        tail = current_chain[-1][-2:]
+        
+        for i in range(len(current_adj[tail])):
+            next_frag = current_adj[tail].pop(i)
+            current_chain.append(next_frag)
+            
+            dfs(current_chain, current_adj)
+            
+            current_chain.pop()
+            current_adj[tail].insert(i, next_frag)
 
-    stack = [(start_node, None)]
-    result_edges = []
+    for start_frag in fragments:
+        current_adj = defaultdict(list)
+        for frag in fragments:
+            current_adj[frag[:2]].append(frag)
+            
+        current_adj[start_frag[:2]].remove(start_frag)
+        
+        dfs([start_frag], current_adj)
 
-    while stack:
-        curr, edge_in = stack[-1]
-        if adj[curr]:
-            nxt_edge = adj[curr].pop()
-            nxt_node = nxt_edge[-2:]
-            stack.append((nxt_node, nxt_edge))
-        else:
-            _, edge = stack.pop()
-            if edge is not None:
-                result_edges.append(edge)
+    if not max_chain:
+        return ""
 
-    result_edges.reverse()
-
-    final_sequence = result_edges[0]
-    for frag in result_edges[1:]:
+    final_sequence = max_chain[0]
+    for frag in max_chain[1:]:
         final_sequence += frag[2:]
 
     return final_sequence
